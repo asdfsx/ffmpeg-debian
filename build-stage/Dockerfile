@@ -1,44 +1,36 @@
-FROM denismakogon/ffmpeg-debian:base as build
+FROM ffmpeg:base as build
 
 ARG PKG_CONFIG_PATH=/opt/ffmpeg/lib/pkgconfig
 ARG LD_LIBRARY_PATH=/opt/ffmpeg/lib
 ARG PREFIX=/opt/ffmpeg
-ARG MAKEFLAGS="-j2"
+ARG MAKEFLAGS="-j4"
 
-ENV  FFMPEG_VERSION=3.4.2     \
-     FDKAAC_VERSION=0.1.5      \
-     LAME_VERSION=3.99.5       \
+ENV  FFMPEG_VERSION=4.3.2      \
+     FDKAAC_VERSION=2.0.2      \
+     LAME_VERSION=3.100        \
      LIBASS_VERSION=0.13.7     \
-     OGG_VERSION=1.3.2         \
+     OGG_VERSION=1.3.4         \
      OPENCOREAMR_VERSION=0.1.5 \
-     OPUS_VERSION=1.2          \
-     OPENJPEG_VERSION=2.1.2    \
+     OPUS_VERSION=1.3.1        \
+     OPENJPEG_VERSION=2.4.0    \
      THEORA_VERSION=1.1.1      \
-     VORBIS_VERSION=1.3.5      \
-     VPX_VERSION=1.7.0         \
-     X264_VERSION=20170226-2245-stable \
-     X265_VERSION=2.3          \
-     XVID_VERSION=1.3.4        \
-     FREETYPE_VERSION=2.5.5    \
+     VORBIS_VERSION=1.3.6      \
+     VPX_VERSION=1.8.2         \
+     X264_VERSION=20191217-2245-stable \
+     X265_VERSION=3.2          \
+     XVID_VERSION=1.3.7        \
+     FREETYPE_VERSION=2.10.4   \
      FRIBIDI_VERSION=0.19.7    \
-     FONTCONFIG_VERSION=2.12.4 \
+     FONTCONFIG_VERSION=2.12.93 \
      LIBVIDSTAB_VERSION=1.1.0  \
-     KVAZAAR_VERSION=1.2.0     \
+     KVAZAAR_VERSION=2.0.0     \
      AOM_VERSION=master \
      SRC=/usr/local
 
-ARG  OGG_SHA256SUM="e19ee34711d7af328cb26287f4137e70630e7261b17cbe3cd41011d73a654692  libogg-1.3.2.tar.gz"
-ARG  OPUS_SHA256SUM="77db45a87b51578fbc49555ef1b10926179861d854eb2613207dc79d9ec0a9a9  opus-1.2.tar.gz"
-ARG  VORBIS_SHA256SUM="6efbcecdd3e5dfbf090341b485da9d176eb250d893e3eb378c428a2db38301ce  libvorbis-1.3.5.tar.gz"
-ARG  THEORA_SHA256SUM="40952956c47811928d1e7922cda3bc1f427eb75680c3c37249c91e949054916b  libtheora-1.1.1.tar.gz"
-ARG  XVID_SHA256SUM="4e9fd62728885855bc5007fe1be58df42e5e274497591fec37249e1052ae316f  xvidcore-1.3.4.tar.gz"
-ARG  FREETYPE_SHA256SUM="5d03dd76c2171a7601e9ce10551d52d4471cf92cd205948e60289251daddffa8  freetype-2.5.5.tar.gz"
-ARG  LIBVIDSTAB_SHA256SUM="14d2a053e56edad4f397be0cb3ef8eb1ec3150404ce99a426c4eb641861dc0bb  v1.1.0.tar.gz"
-ARG  LIBASS_SHA256SUM="8fadf294bf701300d4605e6f1d92929304187fca4b8d8a47889315526adbafd7  0.13.7.tar.gz"
 ARG  FRIBIDI_SHA256SUM="3fc96fa9473bd31dcb5500bdf1aa78b337ba13eb8c301e7c28923fea982453a8  0.19.7.tar.gz"
 
-
-RUN buildDeps="autoconf \
+RUN \
+        buildDeps="autoconf \
               automake \
               cmake \
               curl \
@@ -53,13 +45,23 @@ RUN buildDeps="autoconf \
               nasm \
               perl \
               pkg-config \
-              python \
+              python3 \
               libssl-dev \
               yasm \
               libva-dev \
+              librtmp-dev \
+              uuid-dev \
+              libfribidi-dev \
               zlib1g-dev" && \
         apt-get -yqq update && \
         apt-get install -yq --no-install-recommends ${buildDeps}
+
+## install 
+RUN \
+       echo "deb http://ftp.cn.debian.org/debian sid main" >> /etc/apt/sources.list && \
+       apt-get -yqq update && \
+       apt-get install -yq --no-install-recommends libfribidi-dev 
+
 ## opencore-amr https://sourceforge.net/projects/opencore-amr/
 RUN \
         DIR=/tmp/opencore-amr && \
@@ -101,7 +103,6 @@ RUN \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sLO http://downloads.xiph.org/releases/ogg/libogg-${OGG_VERSION}.tar.gz && \
-        echo ${OGG_SHA256SUM} | sha256sum --check && \
         tar -zx --strip-components=1 -f libogg-${OGG_VERSION}.tar.gz && \
         ./configure --prefix="${PREFIX}" --enable-shared  && \
         make && \
@@ -113,7 +114,6 @@ RUN \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sLO https://archive.mozilla.org/pub/opus/opus-${OPUS_VERSION}.tar.gz && \
-        echo ${OPUS_SHA256SUM} | sha256sum --check && \
         tar -zx --strip-components=1 -f opus-${OPUS_VERSION}.tar.gz && \
         autoreconf -fiv && \
         ./configure --prefix="${PREFIX}" --enable-shared && \
@@ -126,7 +126,6 @@ RUN \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sLO http://downloads.xiph.org/releases/vorbis/libvorbis-${VORBIS_VERSION}.tar.gz && \
-        echo ${VORBIS_SHA256SUM} | sha256sum --check && \
         tar -zx --strip-components=1 -f libvorbis-${VORBIS_VERSION}.tar.gz && \
         ./configure --prefix="${PREFIX}" --with-ogg="${PREFIX}" --enable-shared && \
         make && \
@@ -138,7 +137,6 @@ RUN \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sLO http://downloads.xiph.org/releases/theora/libtheora-${THEORA_VERSION}.tar.gz && \
-        echo ${THEORA_SHA256SUM} | sha256sum --check && \
         tar -zx --strip-components=1 -f libtheora-${THEORA_VERSION}.tar.gz && \
         ./configure --prefix="${PREFIX}" --with-ogg="${PREFIX}" --enable-shared && \
         make && \
@@ -172,8 +170,7 @@ RUN \
         DIR=/tmp/xvid && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
-        curl -sLO http://downloads.xvid.org/downloads/xvidcore-${XVID_VERSION}.tar.gz && \
-        echo ${XVID_SHA256SUM} | sha256sum --check && \
+        curl -sLO http://downloads.xvid.com/downloads/xvidcore-${XVID_VERSION}.tar.gz && \
         tar -zx -f xvidcore-${XVID_VERSION}.tar.gz && \
         cd xvidcore/build/generic && \
         ./configure --prefix="${PREFIX}" --bindir="${PREFIX}/bin" --datadir="${DIR}" --enable-shared --enable-shared && \
@@ -204,24 +201,22 @@ RUN \
         make install && \
         rm -rf ${DIR}
 ## freetype https://www.freetype.org/
-RUN  \
+RUN \
         DIR=/tmp/freetype && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sLO http://download.savannah.gnu.org/releases/freetype/freetype-${FREETYPE_VERSION}.tar.gz && \
-        echo ${FREETYPE_SHA256SUM} | sha256sum --check && \
         tar -zx --strip-components=1 -f freetype-${FREETYPE_VERSION}.tar.gz && \
         ./configure --prefix="${PREFIX}" --disable-static --enable-shared && \
         make && \
         make install && \
         rm -rf ${DIR}
 ## libvstab https://github.com/georgmartius/vid.stab
-RUN  \
+RUN \
         DIR=/tmp/vid.stab && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sLO https://github.com/georgmartius/vid.stab/archive/v${LIBVIDSTAB_VERSION}.tar.gz &&\
-        echo ${LIBVIDSTAB_SHA256SUM} | sha256sum --check && \
         tar -zx --strip-components=1 -f v${LIBVIDSTAB_VERSION}.tar.gz && \
         cmake -DCMAKE_INSTALL_PREFIX="${PREFIX}" . && \
         make && \
@@ -229,21 +224,26 @@ RUN  \
         rm -rf ${DIR}
 ## fridibi https://www.fribidi.org/
 # + https://github.com/fribidi/fribidi/issues/8
-RUN  \
-        DIR=/tmp/fribidi && \
-        mkdir -p ${DIR} && \
-        cd ${DIR} && \
-        curl -sLO https://github.com/fribidi/fribidi/archive/${FRIBIDI_VERSION}.tar.gz && \
-        echo ${FRIBIDI_SHA256SUM} | sha256sum --check && \
-        tar -zx --strip-components=1 -f ${FRIBIDI_VERSION}.tar.gz && \
-        sed -i 's/^SUBDIRS =.*/SUBDIRS=gen.tab charset lib/' Makefile.am && \
-        ./bootstrap --no-config && \
-        ./configure -prefix="${PREFIX}" --disable-static --enable-shared && \
-        make -j 1 && \
-        make install && \
-        rm -rf ${DIR}
+# install this will following error, when execute `go get github.com/3d0c/gmf`:
+#     /usr/bin/ld: //usr/lib/x86_64-linux-gnu/libpango-1.0.so.0: undefined reference to `fribidi_get_bracket'
+#     /usr/bin/ld: //usr/lib/x86_64-linux-gnu/libpango-1.0.so.0: undefined reference to `fribidi_get_par_embedding_levels_ex'
+#     collect2: error: ld returned 1 exit status
+# so install fribidi with `apt install libfribidi-dev`
+# RUN \
+#         DIR=/tmp/fribidi && \
+#         mkdir -p ${DIR} && \
+#         cd ${DIR} && \
+#         curl -sLO https://github.com/fribidi/fribidi/archive/${FRIBIDI_VERSION}.tar.gz && \
+#         echo ${FRIBIDI_SHA256SUM} | sha256sum --check && \
+#         tar -zx --strip-components=1 -f ${FRIBIDI_VERSION}.tar.gz && \
+#         sed -i 's/^SUBDIRS =.*/SUBDIRS=gen.tab charset lib/' Makefile.am && \
+#         ./bootstrap --no-config && \
+#         ./configure -prefix="${PREFIX}" --disable-static --enable-shared && \
+#         make -j 1 && \
+#         make install && \
+#         rm -rf ${DIR}
 ## fontconfig https://www.freedesktop.org/wiki/Software/fontconfig/
-RUN  \
+RUN \
         DIR=/tmp/fontconfig && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
@@ -254,12 +254,11 @@ RUN  \
         make install && \
         rm -rf ${DIR}
 ## libass https://github.com/libass/libass
-RUN  \
+RUN \
         DIR=/tmp/libass && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sLO https://github.com/libass/libass/archive/${LIBASS_VERSION}.tar.gz &&\
-        echo ${LIBASS_SHA256SUM} | sha256sum --check && \
         tar -zx --strip-components=1 -f ${LIBASS_VERSION}.tar.gz && \
         ./autogen.sh && \
         ./configure -prefix="${PREFIX}" --disable-static --enable-shared && \
@@ -280,9 +279,9 @@ RUN \
         rm -rf ${DIR}
 
 RUN \
-        dir=/tmp/aom ; \
-        mkdir -p ${dir} ; \
-        cd ${dir} ; \
+        DIR=/tmp/aom ; \
+        mkdir -p ${DIR} ; \
+        cd ${DIR} ; \
         curl -sLO https://aomedia.googlesource.com/aom/+archive/${AOM_VERSION}.tar.gz ; \
         tar -zx -f ${AOM_VERSION}.tar.gz ; \
         rm -rf CMakeCache.txt CMakeFiles ; \
@@ -291,10 +290,10 @@ RUN \
         cmake -DCMAKE_INSTALL_PREFIX="${PREFIX}" -DBUILD_SHARED_LIBS=1 ..; \
         make ; \
         make install ; \
-        rm -rf ${dir}
+        rm -rf ${DIR}
 
 ## ffmpeg https://ffmpeg.org/
-RUN  \
+RUN \
         DIR=$(mktemp -d) && cd ${DIR} && \
         curl -sLO https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 && \
         tar -jx --strip-components=1 -f ffmpeg-${FFMPEG_VERSION}.tar.bz2 && \
@@ -304,6 +303,8 @@ RUN  \
         --disable-ffplay \
         --enable-vaapi \
         --enable-shared \
+        --enable-static \
+        --enable-nonfree \
         --enable-avresample \
         --enable-libopencore-amrnb \
         --enable-libopencore-amrwb \
@@ -324,9 +325,11 @@ RUN  \
         --enable-openssl \
         --enable-libfdk_aac \
         --enable-libkvazaar \
+        --enable-librtmp \
         \
         --enable-postproc \
         --enable-small \
+        --enable-pthreads \
         --enable-version3 \
         --extra-cflags="-I${PREFIX}/include" \
         --extra-ldflags="-L${PREFIX}/lib" \
